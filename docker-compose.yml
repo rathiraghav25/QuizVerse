@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database Service (Neon compatible local environment)
+  postgres:
+    image: postgres:16-alpine
+    container_name: quizverse_db
+    restart: always
+    environment:
+      POSTGRES_USER: quizverse_user
+      POSTGRES_PASSWORD: quizverse_secure_password_123
+      POSTGRES_DB: quizverse_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quizverse_user -d quizverse_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: quizverse_backend
+    restart: always
+    environment:
+      - PROJECT_NAME=QuizVerse API
+      - API_V1_STR=/api/v1
+      - ENVIRONMENT=development
+      - DEBUG=True
+      - DATABASE_URL=postgresql://quizverse_user:quizverse_secure_password_123@postgres:5432/quizverse_db
+      - SECRET_KEY=quizverse_docker_dev_secret_key_998877
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://127.0.0.1:5173"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
