@@ -1,4 +1,4 @@
-from typing import Generator, Callable
+from typing import Generator, Callable, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from app.models.user import User, UserRole
 from app.repositories.user_repository import UserRepository
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 def get_current_user(
@@ -37,6 +38,24 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+
+def get_optional_current_user(
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme_optional)
+) -> Optional[User]:
+    """Retrieve current user if token is present, else None."""
+    if not token:
+        return None
+    try:
+        payload = decode_access_token(token)
+        user_id_str: str = payload.get("sub")
+        if user_id_str is None:
+            return None
+        repo = UserRepository(db)
+        return repo.get_by_id(int(user_id_str))
+    except Exception:
+        return None
 
 
 def get_current_active_user(
