@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserUpdate
 
 
 class UserRepository:
@@ -34,6 +34,18 @@ class UserRepository:
         self.db.commit()
         self.db.refresh(db_user)
         return db_user
+
+    def update(self, user: User, user_in: UserUpdate) -> User:
+        """Update user profile information (full_name, email). Role cannot be modified."""
+        update_data = user_in.model_dump(exclude_unset=True)
+        update_data.pop("role", None)
+        if "email" in update_data and update_data["email"]:
+            update_data["email"] = update_data["email"].lower()
+        for field, value in update_data.items():
+            setattr(user, field, value)
+        self.db.commit()
+        self.db.refresh(user)
+        return user
 
     def list_all(self, skip: int = 0, limit: int = 100) -> List[User]:
         """Get paginated list of users."""
